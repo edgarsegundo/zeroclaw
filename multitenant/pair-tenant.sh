@@ -323,6 +323,27 @@ fi
 echo "💾 Token salvo em $ENV_FILE"
 echo ""
 
+# Salvar token no config.toml também
+CONFIG_FILE="${TENANT_DIR}/data/.zeroclaw/config.toml"
+echo "🔍 [DEBUG] Atualizando config.toml: $CONFIG_FILE"
+
+if [ -f "$CONFIG_FILE" ]; then
+    # Adicionar token ao array paired_tokens
+    # Primeiro tenta atualizar se já existe o campo
+    if grep -q "^paired_tokens = " "$CONFIG_FILE"; then
+        echo "🔍 [DEBUG] Campo paired_tokens encontrado, atualizando..."
+        sed -i "s|^paired_tokens = \[.*\]|paired_tokens = [\"$TOKEN\"]|" "$CONFIG_FILE"
+    else
+        echo "🔍 [DEBUG] Campo paired_tokens não encontrado, adicionando..."
+        # Adiciona na seção [gateway]
+        sed -i "/^\[gateway\]/a paired_tokens = [\"$TOKEN\"]" "$CONFIG_FILE"
+    fi
+    echo "✅ [DEBUG] Token adicionado ao config.toml"
+else
+    echo "⚠️  [DEBUG] config.toml não encontrado em $CONFIG_FILE"
+fi
+echo ""
+
 # Reiniciar container
 echo "🔄 Reiniciando container..."
 echo "🔍 [DEBUG] Executando: cd $TENANT_DIR && docker compose restart"
