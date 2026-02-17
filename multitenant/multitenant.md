@@ -19,10 +19,10 @@ require_pairing = true
 allow_public_bind = true         # ← Mude de false para true
 
 # Fazer pairing (vai gerar um novo código)
-docker logs zeroclaw-daniela | grep -A 5 "PAIRING REQUIRED"
+docker logs zeroclaw-edgar | grep -A 5 "PAIRING REQUIRED"
 
-curl -X POST http://localhost:3002/pair \
-  -H "X-Pairing-Code: 956749"
+curl -X POST http://localhost:3001/pair \
+  -H "X-Pairing-Code: 513755"
 
 
 
