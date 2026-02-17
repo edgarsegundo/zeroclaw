@@ -118,20 +118,61 @@ PAIRING_CODE=$(echo "$LOGS" | grep -A 3 "PAIRING REQUIRED" | grep -oE '[0-9]{6}'
 if [ -z "$PAIRING_CODE" ]; then
     echo "❌ Código de pairing não encontrado nos logs."
     echo ""
-    echo "O container pode estar reiniciando. Aguarde alguns segundos e tente novamente."
-    echo ""
-    echo "Para ver os logs manualmente:"
-    echo "docker logs $CONTAINER | grep -A 5 \"PAIRING REQUIRED\""
-    exit 1
+    echo "🔄 Reiniciando container para gerar novo código..."
+    cd "$TENANT_DIR" && docker-compose restart > /dev/null 2>&1
+    
+    echo "⏳ Aguardando container iniciar (10s)..."
+    sleep 10
+    
+    # Busca novo código
+    PAIRING_CODE=$(docker logs --tail 50 "$CONTAINER" 2>&1 | grep -A 3 "PAIRING REQUIRED" | grep -oE '[0-9]{6}' | head -n1)
+    
+    if [ -z "$PAIRING_CODE" ]; then
+        echo "❌ Ainda não foi possível obter o código."
+        echo ""
+        echo "Para ver os logs manualmente:"
+        echo "docker logs $CONTAINER | grep -A 5 \"PAIRING REQUIRED\""
+        exit 1
+    fi
 fi
 
 echo "✅ Código encontrado: $PAIRING_CODE"
 echo ""
 
+# Pequena pausa para garantir que o endpoint está pronto
+sleep 2
+
 echo "🔗 Enviando pareamento..."
 
 RESPONSE=$(curl -s -X POST "http://localhost:$PORT/pair" \
   -H "X-Pairing-Code: $PAIRING_CODE")
+
+# Se o pairing falhar por código inválido, tenta reiniciar e gerar novo código
+if echo "$RESPONSE" | grep -q "Invalid pairing code"; then
+    echo "⚠️  Código inválido (já foi usado). Gerando novo código..."
+    echo ""
+    
+    cd "$TENANT_DIR" && docker-compose restart > /dev/null 2>&1
+    echo "⏳ Aguardando container iniciar (10s)..."
+    sleep 10
+    
+    # Busca novo código
+    PAIRING_CODE=$(docker logs --tail 50 "$CONTAINER" 2>&1 | grep -A 3 "PAIRING REQUIRED" | grep -oE '[0-9]{6}' | head -n1)
+    
+    if [ -z "$PAIRING_CODE" ]; then
+        echo "❌ Não foi possível obter novo código."
+        exit 1
+    fi
+    
+    echo "✅ Novo código encontrado: $PAIRING_CODE"
+    echo ""
+    
+    sleep 2
+    
+    echo "🔗 Tentando pareamento novamente..."
+    RESPONSE=$(curl -s -X POST "http://localhost:$PORT/pair" \
+      -H "X-Pairing-Code: $PAIRING_CODE")
+fi
 
 echo ""
 echo "📡 Resposta:"
