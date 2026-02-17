@@ -114,35 +114,43 @@ read -p "Allow public bind? [true]: " ALLOW_PUBLIC_INPUT
 ALLOW_PUBLIC_INPUT=${ALLOW_PUBLIC_INPUT:-true}
 
 echo ""
-echo "📝 Gerando config.toml..."
-
-# Criar config.toml inicial
-cat > "${TENANT_DIR}/data/.zeroclaw/config.toml" << EOF
-workspace_dir = "/zeroclaw-data/workspace"
-config_path = "/zeroclaw-data/.zeroclaw/config.toml"
-api_key = "${API_KEY_INPUT:-}"
-default_provider = "${PROVIDER_INPUT}"
-default_model = "${MODEL_INPUT}"
-default_temperature = 0.7
-
-[gateway]
-port = 3000
-host = "${HOST_INPUT}"
-require_pairing = true
-allow_public_bind = ${ALLOW_PUBLIC_INPUT}
-paired_tokens = []
-pair_rate_limit_per_minute = 10
-webhook_rate_limit_per_minute = 60
-idempotency_ttl_secs = 300
-EOF
-
-# Ajustar permissões do config
-chown 65534:65534 "${TENANT_DIR}/data/.zeroclaw/config.toml"
-
-echo "✅ config.toml criado com sucesso!"
-echo ""
-echo "✅ config.toml criado com sucesso!"
-echo ""
-
-echo "🚀 Iniciando container..."
+echo "� Iniciando container..."
 cd "${TENANT_DIR}" && docker compose up -d
+
+echo "⏳ Aguardando container criar config.toml (15s)..."
+sleep 15
+
+CONFIG_FILE="${TENANT_DIR}/data/.zeroclaw/config.toml"
+
+# Verificar se o config foi criado
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "⚠️  config.toml ainda não foi criado. Aguardando mais 10s..."
+    sleep 10
+fi
+
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "❌ config.toml não foi criado pelo container."
+    echo "Verifique os logs: docker logs zeroclaw-${TENANT_NAME}"
+    exit 1
+fi
+
+echo "✅ config.toml encontrado!"
+echo "📝 Atualizando configurações..."
+
+# Atualizar configurações no config.toml
+sed -i "s|^api_key = .*|api_key = \"${API_KEY_INPUT:-}\"|" "$CONFIG_FILE"
+sed -i "s|^default_provider = .*|default_provider = \"${PROVIDER_INPUT}\"|" "$CONFIG_FILE"
+sed -i "s|^default_model = .*|default_model = \"${MODEL_INPUT}\"|" "$CONFIG_FILE"
+sed -i "s|^host = .*|host = \"${HOST_INPUT}\"|" "$CONFIG_FILE"
+sed -i "s|^allow_public_bind = .*|allow_public_bind = ${ALLOW_PUBLIC_INPUT}|" "$CONFIG_FILE"
+
+echo "✅ config.toml atualizado com sucesso!"
+echo ""
+echo "🔄 Reiniciando container para aplicar configurações..."
+docker compose restart
+
+echo "⏳ Aguardando container reiniciar (5s)..."
+sleep 5
+
+echo "✅ Container reiniciado!"
+echo ""
