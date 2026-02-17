@@ -168,4 +168,4 @@ echo ""
 
 # Chamar o script de pairing (volta para o diretório do script)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "${SCRIPT_DIR}" && ./pair-tenant.sh "${TENANT_NAME}" "${PORT}"
+bash "${SCRIPT_DIR}/pair-tenant.sh" "${TENANT_NAME}" "${PORT}"
