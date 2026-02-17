@@ -61,7 +61,11 @@ echo ""
 echo "⏳ Buscando código de pareamento..."
 
 # Captura código
-PAIRING_CODE=$(timeout 60 docker logs -f "$CONTAINER" 2>&1 | grep -m1 -oE '[0-9]{6}')
+PAIRING_CODE=$(timeout 60 docker logs -f "$CONTAINER" 2>&1 \
+  | grep -A 3 "PAIRING REQUIRED" \
+  | grep -oE '[0-9]{6}' \
+  | head -n1)
+
 
 if [ -z "$PAIRING_CODE" ]; then
     echo "❌ Não foi possível encontrar o código automaticamente."
