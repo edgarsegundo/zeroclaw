@@ -27,8 +27,8 @@ TELEGRAM_BOT_TOKEN=
 ZEROCLAW_IMAGE=ghcr.io/theonlyhennygod/zeroclaw:latest
 EOF
 
-# Criar docker-compose.yml
-cat > "${TENANT_DIR}/docker-compose.yml" << 'EOF'
+# Criar docker compose.yml
+cat > "${TENANT_DIR}/docker compose.yml" << 'EOF'
 # ZeroClaw - Tenant: TENANT_NAME
 # Port: PORT
 
@@ -69,8 +69,8 @@ services:
 EOF
 
 # Substituir placeholders
-sed -i "s/TENANT_NAME/${TENANT_NAME}/g" "${TENANT_DIR}/docker-compose.yml"
-sed -i "s/PORT/${PORT}/g" "${TENANT_DIR}/docker-compose.yml"
+sed -i "s/TENANT_NAME/${TENANT_NAME}/g" "${TENANT_DIR}/docker compose.yml"
+sed -i "s/PORT/${PORT}/g" "${TENANT_DIR}/docker compose.yml"
 
 # Ajustar permissões (user 65534 = nobody no container)
 chown -R 65534:65534 "${TENANT_DIR}/data"
@@ -81,7 +81,7 @@ echo ""
 
 # Iniciar container
 echo "🚀 Iniciando container..."
-cd "${TENANT_DIR}" && docker-compose up -d
+cd "${TENANT_DIR}" && docker compose up -d
 
 echo ""
 echo "⏳ Aguardando container inicializar (5s)..."
@@ -93,6 +93,6 @@ echo " Iniciando processo de pairing..."
 echo "=========================================="
 echo ""
 
-# Chamar o script de pairing
+# Chamar o script de pairing (volta para o diretório do script)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-"${SCRIPT_DIR}/pair-tenant.sh"
+cd "${SCRIPT_DIR}" && ./pair-tenant.sh
