@@ -8,6 +8,9 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Capturar diretório do script ANTES de qualquer cd
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 TENANT_NAME=$1
 PORT=$2
 
@@ -166,6 +169,5 @@ echo " Iniciando processo de pairing..."
 echo "=========================================="
 echo ""
 
-# Chamar o script de pairing (volta para o diretório do script)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Chamar o script de pairing
 bash "${SCRIPT_DIR}/pair-tenant.sh" "${TENANT_NAME}" "${PORT}"
