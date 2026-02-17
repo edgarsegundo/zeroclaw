@@ -1,35 +1,29 @@
 # Como usar:
 
-## 1. Criar o script de setup
-cd /opt/zeroclaw
-vim setup-tenant.sh  # Cole o conteúdo acima
-chmod +x setup-tenant.sh
+## 1. Criar tenants
 
-## 2. Criar tenants
-./setup-tenant.sh edgar 3001
-./setup-tenant.sh tenant2 3002
-./setup-tenant.sh tenant3 3003
+./setup-tenant.sh daniela 3002
 
-## 3. Configurar cada tenant
-vim /opt/zeroclaw/edgar/.env  # Adicione API_KEY e TELEGRAM_BOT_TOKEN
+## 2. Configurar cada tenant
 
-## 4. Iniciar cada tenant
-cd /opt/zeroclaw/edgar
-docker-compose up -d
+nano /opt/zeroclaw/edgar/.env  # Adicione API_KEY e TELEGRAM_BOT_TOKEN
 
-cd /opt/zeroclaw/tenant2
-docker-compose up -d
+## 3. Iniciar cada tenant
 
-## 5. Verificar status
+cd /opt/zeroclaw/daniela
+docker compose up -d
+
+## 4. Verificar status
+
 docker ps
 curl http://localhost:3001/health
-curl http://localhost:3002/health
 
-## 6. Acessar configs diretamente no host
+## 5. Acessar configs diretamente no host
+
 vim /opt/zeroclaw/edgar/data/.zeroclaw/config.toml
 cat /opt/zeroclaw/edgar/data/workspace/session.log
 
-## 7. Fazer pairing para cada tenant
+## 6. Fazer pairing para cada tenant
 cd /opt/zeroclaw/edgar
 docker-compose exec zeroclaw zeroclaw pair
 ## Copie o token e use no Telegram bot

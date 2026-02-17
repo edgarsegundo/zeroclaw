@@ -20,8 +20,8 @@ mkdir -p "${TENANT_DIR}/data/workspace"
 cat > "${TENANT_DIR}/.env" << EOF
 # Tenant: ${TENANT_NAME}
 API_KEY=your_api_key_here
-PROVIDER=openrouter
-ZEROCLAW_MODEL=anthropic/claude-sonnet-4-20250514
+PROVIDER=openai
+ZEROCLAW_MODEL=gpt-4o-mini
 HOST_PORT=${PORT}
 TELEGRAM_BOT_TOKEN=
 ZEROCLAW_IMAGE=ghcr.io/theonlyhennygod/zeroclaw:latest
