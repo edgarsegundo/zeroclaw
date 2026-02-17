@@ -1,6 +1,13 @@
 #!/bin/bash
 # Script para criar um novo tenant
 
+# Verifica se está rodando como root/sudo
+if [ "$EUID" -ne 0 ]; then
+    echo "❌ Este script precisa ser executado com sudo"
+    echo "Uso: sudo ./setup-tenant.sh <tenant_name> <port>"
+    exit 1
+fi
+
 TENANT_NAME=$1
 PORT=$2
 
