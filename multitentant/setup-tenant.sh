@@ -99,45 +99,50 @@ if [ -n "$TELEGRAM_TOKEN_INPUT" ]; then
 fi
 
 echo ""
-echo "🚀 Inicie com: cd ${TENANT_DIR} && docker compose up -d"
-
-echo "📝 Edite ${TENANT_DIR}/data/.zeroclaw/config.toml para configurar o tenant"
-echo ""
-echo "⚠️  ATENÇÃO"
+echo "⚙️  Configuração do Gateway"
 echo "----------------------------------------"
-echo "Atualize o config.toml do tenant:"
-echo ""
-echo "[gateway]"
-echo "  host = \"[::]\""
-echo "  allow_public_bind = true"
-echo ""
-echo "# Modelo"
-echo "  default_provider = \"openai\""
-echo "  default_model = \"gpt-4o-mini\""
-echo ""
-echo "Depois execute:"
-echo "  docker compose restart"
-echo ""
-echo "Verifique os logs para o status de emparelhamento:"
-echo "  docker logs zeroclaw-${TENANT_NAME} | grep -A 5 \"PAIRING REQUIRED\""
+read -p "Provider [openai]: " PROVIDER_INPUT
+PROVIDER_INPUT=${PROVIDER_INPUT:-openai}
+
+read -p "Modelo [gpt-4o-mini]: " MODEL_INPUT
+MODEL_INPUT=${MODEL_INPUT:-gpt-4o-mini}
+
+read -p "Gateway host [[::]]: " HOST_INPUT
+HOST_INPUT=${HOST_INPUT:-[::]}
+
+read -p "Allow public bind? [true]: " ALLOW_PUBLIC_INPUT
+ALLOW_PUBLIC_INPUT=${ALLOW_PUBLIC_INPUT:-true}
 
 echo ""
-echo "⏳ Aguardando código de pareamento..."
+echo "📝 Gerando config.toml..."
 
-# # Captura o código (6 dígitos) dos logs em tempo real
-# PAIRING_CODE=$(timeout 60 docker logs -f zeroclaw-${TENANT_NAME} 2>&1 | grep -m1 -oE '[0-9]{6}')
+# Criar config.toml inicial
+cat > "${TENANT_DIR}/data/.zeroclaw/config.toml" << EOF
+workspace_dir = "/zeroclaw-data/workspace"
+config_path = "/zeroclaw-data/.zeroclaw/config.toml"
+api_key = "${API_KEY_INPUT:-}"
+default_provider = "${PROVIDER_INPUT}"
+default_model = "${MODEL_INPUT}"
+default_temperature = 0.7
 
-# if [ -z "$PAIRING_CODE" ]; then
-#     echo "❌ Não foi possível obter o código de pareamento."
-#     echo "Verifique manualmente com:"
-#     echo "  docker logs zeroclaw-${TENANT_NAME} | grep -A 5 \"PAIRING REQUIRED\""
-# else
-#     echo "✅ Código de pareamento encontrado: $PAIRING_CODE"
-#     echo "🔗 Enviando requisição de pareamento..."
+[gateway]
+port = 3000
+host = "${HOST_INPUT}"
+require_pairing = true
+allow_public_bind = ${ALLOW_PUBLIC_INPUT}
+paired_tokens = []
+pair_rate_limit_per_minute = 10
+webhook_rate_limit_per_minute = 60
+idempotency_ttl_secs = 300
+EOF
 
-#     curl -X POST "http://localhost:${PORT}/pair" \
-#       -H "X-Pairing-Code: $PAIRING_CODE"
+# Ajustar permissões do config
+chown 65534:65534 "${TENANT_DIR}/data/.zeroclaw/config.toml"
 
-#     echo ""
-#     echo "✅ Pareamento concluído!"
-# fi
+echo "✅ config.toml criado com sucesso!"
+echo ""
+echo "✅ config.toml criado com sucesso!"
+echo ""
+
+echo "🚀 Iniciando container..."
+cd "${TENANT_DIR}" && docker compose up -d
