@@ -86,19 +86,41 @@ if [ -n "$EXISTING_TOKEN" ]; then
     exit 0
 fi
 
-echo "⏳ Buscando código de pareamento (timeout 60s)..."
-echo ""
+# Verifica se container precisa de pairing
+echo "⏳ Verificando status do pairing..."
 
-# Captura código corretamente
-PAIRING_CODE=$(timeout 60 docker logs -f "$CONTAINER" 2>&1 \
-  | grep -A 3 "PAIRING REQUIRED" \
-  | grep -oE '[0-9]{6}' \
-  | head -n1)
+# Busca nos logs recentes (últimas 50 linhas)
+LOGS=$(docker logs --tail 50 "$CONTAINER" 2>&1)
+
+# Verifica se já está pareado
+if echo "$LOGS" | grep -q "🔒 Pairing: ACTIVE (bearer token required)"; then
+    echo "⚠️  Container já está pareado, mas token não está no .env"
+    echo ""
+    echo "Opções:"
+    echo "1. Pegue o token do config.toml:"
+    echo "   sudo cat $TENANT_DIR/data/.zeroclaw/config.toml | grep paired_tokens"
+    echo ""
+    echo "2. Ou reinicie o container para gerar novo código de pairing:"
+    echo "   cd $TENANT_DIR && docker-compose restart"
+    exit 1
+fi
+
+# Verifica se pairing está desabilitado
+if echo "$LOGS" | grep -q "⚠️  Pairing: DISABLED"; then
+    echo "⚠️  Pairing está desabilitado para este tenant"
+    echo "Nenhum token necessário."
+    exit 0
+fi
+
+# Busca código de pairing nos logs
+PAIRING_CODE=$(echo "$LOGS" | grep -A 3 "PAIRING REQUIRED" | grep -oE '[0-9]{6}' | head -n1)
 
 if [ -z "$PAIRING_CODE" ]; then
-    echo "❌ Código não encontrado."
+    echo "❌ Código de pairing não encontrado nos logs."
     echo ""
-    echo "Tente manualmente:"
+    echo "O container pode estar reiniciando. Aguarde alguns segundos e tente novamente."
+    echo ""
+    echo "Para ver os logs manualmente:"
     echo "docker logs $CONTAINER | grep -A 5 \"PAIRING REQUIRED\""
     exit 1
 fi
@@ -140,7 +162,7 @@ echo ""
 
 # Reiniciar container
 echo "🔄 Reiniciando container..."
-cd "$TENANT_DIR" && docker compose restart
+cd "$TENANT_DIR" && docker-compose restart
 echo ""
 
 # Testar webhook
