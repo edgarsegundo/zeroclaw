@@ -89,8 +89,8 @@ fi
 # Verifica se container precisa de pairing
 echo "⏳ Verificando status do pairing..."
 
-# Busca nos logs recentes (últimas 50 linhas)
-LOGS=$(docker logs --tail 50 "$CONTAINER" 2>&1)
+# Busca nos logs recentes (últimas 100 linhas para garantir)
+LOGS=$(docker logs --tail 100 "$CONTAINER" 2>&1)
 
 # Verifica se já está pareado
 if echo "$LOGS" | grep -q "🔒 Pairing: ACTIVE (bearer token required)"; then
@@ -101,7 +101,7 @@ if echo "$LOGS" | grep -q "🔒 Pairing: ACTIVE (bearer token required)"; then
     echo "   sudo cat $TENANT_DIR/data/.zeroclaw/config.toml | grep paired_tokens"
     echo ""
     echo "2. Ou reinicie o container para gerar novo código de pairing:"
-    echo "   cd $TENANT_DIR && docker-compose restart"
+    echo "   cd $TENANT_DIR && docker compose restart"
     exit 1
 fi
 
@@ -112,24 +112,30 @@ if echo "$LOGS" | grep -q "⚠️  Pairing: DISABLED"; then
     exit 0
 fi
 
-# Busca código de pairing nos logs
-PAIRING_CODE=$(echo "$LOGS" | grep -A 3 "PAIRING REQUIRED" | grep -oE '[0-9]{6}' | head -n1)
+# Busca código de pairing nos logs (do fim para o início, pega o mais recente)
+PAIRING_CODE=$(echo "$LOGS" | grep -A 3 "PAIRING REQUIRED" | grep -oE '[0-9]{6}' | tail -n1)
 
 if [ -z "$PAIRING_CODE" ]; then
     echo "❌ Código de pairing não encontrado nos logs."
     echo ""
     echo "🔄 Reiniciando container para gerar novo código..."
-    cd "$TENANT_DIR" && docker-compose restart > /dev/null 2>&1
+    cd "$TENANT_DIR" && docker compose restart > /dev/null 2>&1
     
     echo "⏳ Aguardando container iniciar (10s)..."
     sleep 10
     
-    # Busca novo código
-    PAIRING_CODE=$(docker logs --tail 50 "$CONTAINER" 2>&1 | grep -A 3 "PAIRING REQUIRED" | grep -oE '[0-9]{6}' | head -n1)
+    # Busca novo código (do fim para o início)
+    PAIRING_CODE=$(docker logs --tail 100 "$CONTAINER" 2>&1 | grep -A 3 "PAIRING REQUIRED" | grep -oE '[0-9]{6}' | tail -n1)
     
     if [ -z "$PAIRING_CODE" ]; then
         echo "❌ Ainda não foi possível obter o código."
         echo ""
+        echo "Verificando se o container está rodando..."
+        if ! docker ps | grep -q "$CONTAINER"; then
+            echo "❌ Container não está rodando!"
+            echo "Verifique os logs: docker logs $CONTAINER"
+            exit 1
+        fi
         echo "Para ver os logs manualmente:"
         echo "docker logs $CONTAINER | grep -A 5 \"PAIRING REQUIRED\""
         exit 1
@@ -147,6 +153,30 @@ echo "🔗 Enviando pareamento..."
 RESPONSE=$(curl -s -X POST "http://localhost:$PORT/pair" \
   -H "X-Pairing-Code: $PAIRING_CODE")
 
+# Verificar lockout
+if echo "$RESPONSE" | grep -q "Too many failed attempts"; then
+    RETRY_AFTER=$(echo "$RESPONSE" | grep -oP '"retry_after":\K[0-9]+' || echo "300")
+    echo ""
+    echo "⏳ Lockout ativo! Aguarde ${RETRY_AFTER}s ($((RETRY_AFTER / 60)) minutos)"
+    echo ""
+    echo "Opções:"
+    echo "1. Aguardar ${RETRY_AFTER}s e rodar o script novamente"
+    echo "2. Forçar reset (limpa o lockout):"
+    echo "   cd $TENANT_DIR && docker compose down && docker compose up -d"
+    echo ""
+    read -p "Deseja fazer reset agora? [y/N]: " RESET_CHOICE
+    if [[ "$RESET_CHOICE" =~ ^[Yy]$ ]]; then
+        echo "🔄 Fazendo reset do container..."
+        cd "$TENANT_DIR" && docker compose down > /dev/null 2>&1
+        docker compose up -d > /dev/null 2>&1
+        echo "⏳ Aguardando inicialização (15s)..."
+        sleep 15
+        # Continuar com novo código abaixo
+    else
+        exit 1
+    fi
+fi
+
 # Se o pairing falhar por código inválido, tenta reiniciar e gerar novo código
 if echo "$RESPONSE" | grep -q "Invalid pairing code"; then
     echo "⚠️  Código inválido (já foi usado). Gerando novo código..."
@@ -155,21 +185,22 @@ if echo "$RESPONSE" | grep -q "Invalid pairing code"; then
     OLD_CODE="$PAIRING_CODE"
     
     # Para e inicia novamente (down/up gera novo código com certeza)
-    cd "$TENANT_DIR" && docker-compose down > /dev/null 2>&1
+    cd "$TENANT_DIR" && docker compose down > /dev/null 2>&1
     echo "⏳ Iniciando container e aguardando novo código (15s)..."
-    docker-compose up -d > /dev/null 2>&1
+    docker compose up -d > /dev/null 2>&1
     sleep 15
     
     # Busca novo código (deve ser diferente)
     for i in {1..5}; do
-        PAIRING_CODE=$(docker logs --tail 20 "$CONTAINER" 2>&1 | grep -A 3 "PAIRING REQUIRED" | grep -oE '[0-9]{6}' | tail -n1)
+        PAIRING_CODE=$(docker logs --tail 50 "$CONTAINER" 2>&1 | grep -A 3 "PAIRING REQUIRED" | grep -oE '[0-9]{6}' | tail -n1)
         
         # Verifica se é um código diferente
         if [ -n "$PAIRING_CODE" ] && [ "$PAIRING_CODE" != "$OLD_CODE" ]; then
+            echo "✅ Código único encontrado: $PAIRING_CODE"
             break
         fi
         
-        echo "⏳ Aguardando código diferente... tentativa $i/5"
+        echo "⏳ Aguardando código diferente... tentativa $i/5 (atual: ${PAIRING_CODE:-nenhum})"
         sleep 3
     done
     
@@ -180,7 +211,7 @@ if echo "$RESPONSE" | grep -q "Invalid pairing code"; then
         echo ""
         echo "Tente manualmente:"
         echo "1. cd $TENANT_DIR"
-        echo "2. docker-compose down && docker-compose up -d"
+        echo "2. docker compose down && docker compose up -d"
         echo "3. docker logs $CONTAINER | grep -A 5 'PAIRING REQUIRED'"
         exit 1
     fi
@@ -224,7 +255,7 @@ echo ""
 
 # Reiniciar container
 echo "🔄 Reiniciando container..."
-cd "$TENANT_DIR" && docker-compose restart
+cd "$TENANT_DIR" && docker compose restart
 echo ""
 
 # Testar webhook
