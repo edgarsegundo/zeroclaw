@@ -169,8 +169,5 @@ echo " Iniciando processo de pairing..."
 echo "=========================================="
 echo ""
 
-
-exit 0
-
 # Chamar o script de pairing
 bash "${SCRIPT_DIR}/pair-tenant.sh" "${TENANT_NAME}" "${PORT}"
