@@ -76,8 +76,28 @@ sed -i "s/PORT/${PORT}/g" "${TENANT_DIR}/docker-compose.yml"
 chown -R 65534:65534 "${TENANT_DIR}/data"
 
 echo "✅ Tenant '${TENANT_NAME}' criado em ${TENANT_DIR}"
-echo "📝 Edite ${TENANT_DIR}/.env para configurar API keys"
-echo "   Coloque sua chave de API no campo API_KEY"
+echo ""
+echo "🔑 Configuração de API Key"
+echo "----------------------------------------"
+read -p "Digite sua API Key (OpenAI/OpenRouter): " API_KEY_INPUT
+
+if [ -z "$API_KEY_INPUT" ]; then
+    echo "⚠️  Nenhuma API key fornecida. Você precisará editar manualmente:"
+    echo "   ${TENANT_DIR}/.env"
+else
+    # Atualizar .env com a API key fornecida
+    sed -i "s|API_KEY=your_api_key_here|API_KEY=${API_KEY_INPUT}|" "${TENANT_DIR}/.env"
+    echo "✅ API Key configurada!"
+fi
+
+echo ""
+read -p "Digite o token do Telegram Bot (ou Enter para pular): " TELEGRAM_TOKEN_INPUT
+
+if [ -n "$TELEGRAM_TOKEN_INPUT" ]; then
+    sed -i "s|TELEGRAM_BOT_TOKEN=|TELEGRAM_BOT_TOKEN=${TELEGRAM_TOKEN_INPUT}|" "${TENANT_DIR}/.env"
+    echo "✅ Token do Telegram configurado!"
+fi
+
 echo ""
 echo "🚀 Inicie com: cd ${TENANT_DIR} && docker compose up -d"
 
