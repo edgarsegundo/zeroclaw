@@ -77,6 +77,8 @@ chown -R 65534:65534 "${TENANT_DIR}/data"
 
 echo "✅ Tenant '${TENANT_NAME}' criado em ${TENANT_DIR}"
 echo "📝 Edite ${TENANT_DIR}/.env para configurar API keys"
+echo "   Coloque sua chave de API no campo API_KEY"
+echo ""
 echo "🚀 Inicie com: cd ${TENANT_DIR} && docker compose up -d"
 
 echo "📝 Edite ${TENANT_DIR}/data/.zeroclaw/config.toml para configurar o tenant"
