@@ -127,6 +127,8 @@ peripheral-rpi = ["rppal"]
 probe = ["dep:probe-rs"]
 # rag-pdf = PDF ingestion for datasheet RAG
 rag-pdf = ["dep:pdf-extract"]
+# browser-native = Rust-native browser automation via fantoccini (no Node.js)
+browser-native = ["dep:fantoccini"]
 
 [profile.release]
 opt-level = "z"      # Optimize for size
