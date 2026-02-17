@@ -2,7 +2,7 @@
 
 ## 1. Criar tenants
 
-./setup-tenant.sh daniela 3002
+sudo ./setup-tenant.sh daniela 3002
 
 ## 2. Configurar cada tenant
 

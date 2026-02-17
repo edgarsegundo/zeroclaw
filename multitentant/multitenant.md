@@ -4,7 +4,6 @@
 
 sudo chown -R 65534:65534 /opt/zeroclaw/edgar/data
 
-
 docker compose up -d
 
 
