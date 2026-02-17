@@ -27,8 +27,8 @@ TELEGRAM_BOT_TOKEN=
 ZEROCLAW_IMAGE=ghcr.io/theonlyhennygod/zeroclaw:latest
 EOF
 
-# Criar docker compose.yml
-cat > "${TENANT_DIR}/docker compose.yml" << 'EOF'
+# Criar docker-compose.yml
+cat > "${TENANT_DIR}/docker-compose.yml" << 'EOF'
 # ZeroClaw - Tenant: TENANT_NAME
 # Port: PORT
 
@@ -69,30 +69,53 @@ services:
 EOF
 
 # Substituir placeholders
-sed -i "s/TENANT_NAME/${TENANT_NAME}/g" "${TENANT_DIR}/docker compose.yml"
-sed -i "s/PORT/${PORT}/g" "${TENANT_DIR}/docker compose.yml"
+sed -i "s/TENANT_NAME/${TENANT_NAME}/g" "${TENANT_DIR}/docker-compose.yml"
+sed -i "s/PORT/${PORT}/g" "${TENANT_DIR}/docker-compose.yml"
 
 # Ajustar permissões (user 65534 = nobody no container)
 chown -R 65534:65534 "${TENANT_DIR}/data"
 
 echo "✅ Tenant '${TENANT_NAME}' criado em ${TENANT_DIR}"
 echo "📝 Edite ${TENANT_DIR}/.env para configurar API keys"
-echo ""
+echo "🚀 Inicie com: cd ${TENANT_DIR} && docker compose up -d"
 
-# Iniciar container
-echo "🚀 Iniciando container..."
-cd "${TENANT_DIR}" && docker compose up -d
+echo "📝 Edite ${TENANT_DIR}/data/.zeroclaw/config.toml para configurar o tenant"
+echo ""
+echo "⚠️  ATENÇÃO"
+echo "----------------------------------------"
+echo "Atualize o config.toml do tenant:"
+echo ""
+echo "[gateway]"
+echo "  host = \"[::]\""
+echo "  allow_public_bind = true"
+echo ""
+echo "# Modelo"
+echo "  default_provider = \"openai\""
+echo "  default_model = \"gpt-4o-mini\""
+echo ""
+echo "Depois execute:"
+echo "  docker compose restart"
+echo ""
+echo "Verifique os logs para o status de emparelhamento:"
+echo "  docker logs zeroclaw-${TENANT_NAME} | grep -A 5 \"PAIRING REQUIRED\""
 
 echo ""
-echo "⏳ Aguardando container inicializar (5s)..."
-sleep 5
+echo "⏳ Aguardando código de pareamento..."
 
-echo ""
-echo "=========================================="
-echo " Iniciando processo de pairing..."
-echo "=========================================="
-echo ""
+# Captura o código (6 dígitos) dos logs em tempo real
+PAIRING_CODE=$(timeout 60 docker logs -f zeroclaw-${TENANT_NAME} 2>&1 | grep -m1 -oE '[0-9]{6}')
 
-# Chamar o script de pairing (volta para o diretório do script)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "${SCRIPT_DIR}" && ./pair-tenant.sh
+if [ -z "$PAIRING_CODE" ]; then
+    echo "❌ Não foi possível obter o código de pareamento."
+    echo "Verifique manualmente com:"
+    echo "  docker logs zeroclaw-${TENANT_NAME} | grep -A 5 \"PAIRING REQUIRED\""
+else
+    echo "✅ Código de pareamento encontrado: $PAIRING_CODE"
+    echo "🔗 Enviando requisição de pareamento..."
+
+    curl -X POST "http://localhost:${PORT}/pair" \
+      -H "X-Pairing-Code: $PAIRING_CODE"
+
+    echo ""
+    echo "✅ Pareamento concluído!"
+fi
