@@ -17,21 +17,12 @@ port = 3000
 host = "[::]"                    # ← Mude de 127.0.0.1 para [::]
 require_pairing = true
 allow_public_bind = true         # ← Mude de false para true
-paired_tokens = []
-pair_rate_limit_per_minute = 10
-webhook_rate_limit_per_minute = 60
-idempotency_ttl_secs = 300
 
+# Fazer pairing (vai gerar um novo código)
+docker logs zeroclaw-daniela | grep -A 5 "PAIRING REQUIRED"
 
-
-## Próximo passo: Fazer pairing
-
-# 1. Fazer pairing (vai gerar um novo código)
-docker logs zeroclaw-edgar | grep -A 5 "PAIRING REQUIRED"
-
-
-curl -X POST http://localhost:3001/pair \
-  -H "X-Pairing-Code: 279537"
+curl -X POST http://localhost:3002/pair \
+  -H "X-Pairing-Code: 809105"
 
 
 
