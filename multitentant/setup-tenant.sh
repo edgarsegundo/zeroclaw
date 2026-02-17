@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script para criar um novo tenant
+# Script para criar um novo tenant do ZeroClaw com configuração básica e iniciar o processo de pairing.
 
 # Verifica se está rodando como root/sudo
 if [ "$EUID" -ne 0 ]; then
