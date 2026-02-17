@@ -152,15 +152,36 @@ if echo "$RESPONSE" | grep -q "Invalid pairing code"; then
     echo "⚠️  Código inválido (já foi usado). Gerando novo código..."
     echo ""
     
-    cd "$TENANT_DIR" && docker-compose restart > /dev/null 2>&1
-    echo "⏳ Aguardando container iniciar (10s)..."
-    sleep 10
+    OLD_CODE="$PAIRING_CODE"
     
-    # Busca novo código
-    PAIRING_CODE=$(docker logs --tail 50 "$CONTAINER" 2>&1 | grep -A 3 "PAIRING REQUIRED" | grep -oE '[0-9]{6}' | head -n1)
+    # Para e inicia novamente (down/up gera novo código com certeza)
+    cd "$TENANT_DIR" && docker-compose down > /dev/null 2>&1
+    echo "⏳ Iniciando container e aguardando novo código (15s)..."
+    docker-compose up -d > /dev/null 2>&1
+    sleep 15
     
-    if [ -z "$PAIRING_CODE" ]; then
-        echo "❌ Não foi possível obter novo código."
+    # Busca novo código (deve ser diferente)
+    for i in {1..5}; do
+        PAIRING_CODE=$(docker logs --tail 20 "$CONTAINER" 2>&1 | grep -A 3 "PAIRING REQUIRED" | grep -oE '[0-9]{6}' | tail -n1)
+        
+        # Verifica se é um código diferente
+        if [ -n "$PAIRING_CODE" ] && [ "$PAIRING_CODE" != "$OLD_CODE" ]; then
+            break
+        fi
+        
+        echo "⏳ Aguardando código diferente... tentativa $i/5"
+        sleep 3
+    done
+    
+    if [ -z "$PAIRING_CODE" ] || [ "$PAIRING_CODE" = "$OLD_CODE" ]; then
+        echo "❌ Não foi possível obter novo código único."
+        echo "Código antigo: $OLD_CODE"
+        echo "Código atual: $PAIRING_CODE"
+        echo ""
+        echo "Tente manualmente:"
+        echo "1. cd $TENANT_DIR"
+        echo "2. docker-compose down && docker-compose up -d"
+        echo "3. docker logs $CONTAINER | grep -A 5 'PAIRING REQUIRED'"
         exit 1
     fi
     
