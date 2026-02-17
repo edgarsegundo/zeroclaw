@@ -2,24 +2,32 @@
 
 BASE_DIR="/opt/zeroclaw"
 
-# Verifica se o diretório existe
+echo "========================================"
+echo " ZeroClaw - Pairing Tool"
+echo "========================================"
+echo ""
+
+# Verifica diretório base
 if [ ! -d "$BASE_DIR" ]; then
     echo "❌ Diretório $BASE_DIR não encontrado"
     exit 1
 fi
 
-# Lista tenants
-echo "Selecione um tenant:"
-echo ""
-
-tenants=($(ls -1 "$BASE_DIR"))
+# Lista tenants válidos (com .env)
+tenants=()
+for dir in "$BASE_DIR"/*; do
+    [ -d "$dir" ] && [ -f "$dir/.env" ] && tenants+=("$(basename "$dir")")
+done
 
 if [ ${#tenants[@]} -eq 0 ]; then
-    echo "❌ Nenhum tenant encontrado em $BASE_DIR"
+    echo "❌ Nenhum tenant válido encontrado em $BASE_DIR"
     exit 1
 fi
 
-# Mostrar lista numerada
+# Mostrar lista
+echo "Selecione um tenant:"
+echo ""
+
 for i in "${!tenants[@]}"; do
     echo "$((i+1))) ${tenants[$i]}"
 done
@@ -27,7 +35,7 @@ done
 echo ""
 read -p "Digite o número do tenant: " choice
 
-# Validar escolha
+# Validar entrada
 if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#tenants[@]} ]; then
     echo "❌ Opção inválida"
     exit 1
@@ -43,11 +51,11 @@ echo "👉 Tenant selecionado: $TENANT_NAME"
 
 # Verifica .env
 if [ ! -f "$ENV_FILE" ]; then
-    echo "❌ Arquivo .env não encontrado em $TENANT_DIR"
+    echo "❌ Arquivo .env não encontrado"
     exit 1
 fi
 
-# Extrai a porta
+# Extrai porta
 PORT=$(grep "^HOST_PORT=" "$ENV_FILE" | cut -d '=' -f2)
 
 if [ -z "$PORT" ]; then
@@ -55,20 +63,40 @@ if [ -z "$PORT" ]; then
     exit 1
 fi
 
-echo "🌐 Porta detectada: $PORT"
+echo "🌐 Porta: $PORT"
 echo ""
 
-echo "⏳ Buscando código de pareamento..."
+# Verifica token existente
+EXISTING_TOKEN=$(grep "^ZEROCLAW_TOKEN=" "$ENV_FILE" | cut -d '=' -f2)
 
-# Captura código
+if [ -n "$EXISTING_TOKEN" ]; then
+    echo "✅ Tenant já está pareado."
+    echo "🔑 Token: $EXISTING_TOKEN"
+    echo ""
+
+    echo "🚀 Testando webhook..."
+
+    curl -s -X POST "http://localhost:$PORT/webhook" \
+      -H "Authorization: Bearer $EXISTING_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{"message": "Hello again!"}'
+
+    echo ""
+    echo "✅ Teste concluído!"
+    exit 0
+fi
+
+echo "⏳ Buscando código de pareamento (timeout 60s)..."
+echo ""
+
+# Captura código corretamente
 PAIRING_CODE=$(timeout 60 docker logs -f "$CONTAINER" 2>&1 \
   | grep -A 3 "PAIRING REQUIRED" \
   | grep -oE '[0-9]{6}' \
   | head -n1)
 
-
 if [ -z "$PAIRING_CODE" ]; then
-    echo "❌ Não foi possível encontrar o código automaticamente."
+    echo "❌ Código não encontrado."
     echo ""
     echo "Tente manualmente:"
     echo "docker logs $CONTAINER | grep -A 5 \"PAIRING REQUIRED\""
@@ -78,21 +106,21 @@ fi
 echo "✅ Código encontrado: $PAIRING_CODE"
 echo ""
 
-echo "🔗 Enviando requisição..."
+echo "🔗 Enviando pareamento..."
 
 RESPONSE=$(curl -s -X POST "http://localhost:$PORT/pair" \
   -H "X-Pairing-Code: $PAIRING_CODE")
 
 echo ""
-echo "📡 Resposta do pareamento:"
+echo "📡 Resposta:"
 echo "$RESPONSE"
 echo ""
 
-# Extrair token do JSON
+# Extrair token
 TOKEN=$(echo "$RESPONSE" | grep -oP '"token":"\K[^"]+')
 
 if [ -z "$TOKEN" ]; then
-    echo "❌ Não foi possível extrair o token."
+    echo "❌ Não foi possível extrair o token"
     exit 1
 fi
 
@@ -100,6 +128,22 @@ echo "🔑 Token obtido:"
 echo "$TOKEN"
 echo ""
 
+# Salvar token no .env
+if grep -q "^ZEROCLAW_TOKEN=" "$ENV_FILE"; then
+    sed -i "s|^ZEROCLAW_TOKEN=.*|ZEROCLAW_TOKEN=$TOKEN|" "$ENV_FILE"
+else
+    echo "ZEROCLAW_TOKEN=$TOKEN" >> "$ENV_FILE"
+fi
+
+echo "💾 Token salvo em $ENV_FILE"
+echo ""
+
+# Reiniciar container
+echo "🔄 Reiniciando container..."
+cd "$TENANT_DIR" && docker compose restart
+echo ""
+
+# Testar webhook
 echo "🚀 Enviando mensagem de teste..."
 
 WEBHOOK_RESPONSE=$(curl -s -X POST "http://localhost:$PORT/webhook" \
@@ -112,4 +156,6 @@ echo "📨 Resposta do webhook:"
 echo "$WEBHOOK_RESPONSE"
 echo ""
 
-echo "✅ Teste concluído!"
+echo "========================================"
+echo " ✅ Pairing concluído com sucesso!"
+echo "========================================"
