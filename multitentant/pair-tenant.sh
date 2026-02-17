@@ -84,8 +84,32 @@ RESPONSE=$(curl -s -X POST "http://localhost:$PORT/pair" \
   -H "X-Pairing-Code: $PAIRING_CODE")
 
 echo ""
-echo "📡 Resposta:"
+echo "📡 Resposta do pareamento:"
 echo "$RESPONSE"
 echo ""
 
-echo "✅ Pareamento concluído!"
+# Extrair token do JSON
+TOKEN=$(echo "$RESPONSE" | grep -oP '"token":"\K[^"]+')
+
+if [ -z "$TOKEN" ]; then
+    echo "❌ Não foi possível extrair o token."
+    exit 1
+fi
+
+echo "🔑 Token obtido:"
+echo "$TOKEN"
+echo ""
+
+echo "🚀 Enviando mensagem de teste..."
+
+WEBHOOK_RESPONSE=$(curl -s -X POST "http://localhost:$PORT/webhook" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello ZeroClaw!"}')
+
+echo ""
+echo "📨 Resposta do webhook:"
+echo "$WEBHOOK_RESPONSE"
+echo ""
+
+echo "✅ Teste concluído!"
