@@ -13,58 +13,77 @@ if [ ! -d "$BASE_DIR" ]; then
     exit 1
 fi
 
-# Lista tenants válidos (com .env)
-tenants=()
-for dir in "$BASE_DIR"/*; do
-    [ -d "$dir" ] && [ -f "$dir/.env" ] && tenants+=("$(basename "$dir")")
-done
+# Se parâmetros foram passados, usa eles diretamente
+if [ -n "$1" ] && [ -n "$2" ]; then
+    TENANT_NAME="$1"
+    PORT="$2"
+    TENANT_DIR="$BASE_DIR/$TENANT_NAME"
+    ENV_FILE="$TENANT_DIR/.env"
+    CONTAINER="zeroclaw-$TENANT_NAME"
+    
+    echo "👉 Tenant: $TENANT_NAME"
+    echo "🌐 Porta: $PORT"
+    echo ""
+    
+    # Verifica se o tenant existe
+    if [ ! -d "$TENANT_DIR" ] || [ ! -f "$ENV_FILE" ]; then
+        echo "❌ Tenant '$TENANT_NAME' não encontrado em $BASE_DIR"
+        exit 1
+    fi
+else
+    # Modo interativo: lista tenants válidos
+    tenants=()
+    for dir in "$BASE_DIR"/*; do
+        [ -d "$dir" ] && [ -f "$dir/.env" ] && tenants+=("$(basename "$dir")")
+    done
 
-if [ ${#tenants[@]} -eq 0 ]; then
-    echo "❌ Nenhum tenant válido encontrado em $BASE_DIR"
-    exit 1
+    if [ ${#tenants[@]} -eq 0 ]; then
+        echo "❌ Nenhum tenant válido encontrado em $BASE_DIR"
+        exit 1
+    fi
+
+    # Mostrar lista
+    echo "Selecione um tenant:"
+    echo ""
+
+    for i in "${!tenants[@]}"; do
+        echo "$((i+1))) ${tenants[$i]}"
+    done
+
+    echo ""
+    read -p "Digite o número do tenant: " choice
+
+    # Validar entrada
+    if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#tenants[@]} ]; then
+        echo "❌ Opção inválida"
+        exit 1
+    fi
+
+    TENANT_NAME="${tenants[$((choice-1))]}"
+    TENANT_DIR="$BASE_DIR/$TENANT_NAME"
+    ENV_FILE="$TENANT_DIR/.env"
+    CONTAINER="zeroclaw-$TENANT_NAME"
+
+    echo ""
+    echo "👉 Tenant selecionado: $TENANT_NAME"
+    
+    # Extrai porta do .env
+    PORT=$(grep "^HOST_PORT=" "$ENV_FILE" | cut -d '=' -f2)
+    
+    if [ -z "$PORT" ]; then
+        echo "❌ HOST_PORT não encontrado no .env"
+        exit 1
+    fi
+    
+    echo "🌐 Porta: $PORT"
+    echo ""
 fi
-
-# Mostrar lista
-echo "Selecione um tenant:"
-echo ""
-
-for i in "${!tenants[@]}"; do
-    echo "$((i+1))) ${tenants[$i]}"
-done
-
-echo ""
-read -p "Digite o número do tenant: " choice
-
-# Validar entrada
-if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#tenants[@]} ]; then
-    echo "❌ Opção inválida"
-    exit 1
-fi
-
-TENANT_NAME="${tenants[$((choice-1))]}"
-TENANT_DIR="$BASE_DIR/$TENANT_NAME"
-ENV_FILE="$TENANT_DIR/.env"
-CONTAINER="zeroclaw-$TENANT_NAME"
-
-echo ""
-echo "👉 Tenant selecionado: $TENANT_NAME"
 
 # Verifica .env
 if [ ! -f "$ENV_FILE" ]; then
     echo "❌ Arquivo .env não encontrado"
     exit 1
 fi
-
-# Extrai porta
-PORT=$(grep "^HOST_PORT=" "$ENV_FILE" | cut -d '=' -f2)
-
-if [ -z "$PORT" ]; then
-    echo "❌ HOST_PORT não encontrado no .env"
-    exit 1
-fi
-
-echo "🌐 Porta: $PORT"
-echo ""
 
 # Verifica token existente
 EXISTING_TOKEN=$(grep "^ZEROCLAW_TOKEN=" "$ENV_FILE" | cut -d '=' -f2)
