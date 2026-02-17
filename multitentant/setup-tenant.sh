@@ -102,20 +102,20 @@ echo "  docker logs zeroclaw-${TENANT_NAME} | grep -A 5 \"PAIRING REQUIRED\""
 echo ""
 echo "⏳ Aguardando código de pareamento..."
 
-# Captura o código (6 dígitos) dos logs em tempo real
-PAIRING_CODE=$(timeout 60 docker logs -f zeroclaw-${TENANT_NAME} 2>&1 | grep -m1 -oE '[0-9]{6}')
+# # Captura o código (6 dígitos) dos logs em tempo real
+# PAIRING_CODE=$(timeout 60 docker logs -f zeroclaw-${TENANT_NAME} 2>&1 | grep -m1 -oE '[0-9]{6}')
 
-if [ -z "$PAIRING_CODE" ]; then
-    echo "❌ Não foi possível obter o código de pareamento."
-    echo "Verifique manualmente com:"
-    echo "  docker logs zeroclaw-${TENANT_NAME} | grep -A 5 \"PAIRING REQUIRED\""
-else
-    echo "✅ Código de pareamento encontrado: $PAIRING_CODE"
-    echo "🔗 Enviando requisição de pareamento..."
+# if [ -z "$PAIRING_CODE" ]; then
+#     echo "❌ Não foi possível obter o código de pareamento."
+#     echo "Verifique manualmente com:"
+#     echo "  docker logs zeroclaw-${TENANT_NAME} | grep -A 5 \"PAIRING REQUIRED\""
+# else
+#     echo "✅ Código de pareamento encontrado: $PAIRING_CODE"
+#     echo "🔗 Enviando requisição de pareamento..."
 
-    curl -X POST "http://localhost:${PORT}/pair" \
-      -H "X-Pairing-Code: $PAIRING_CODE"
+#     curl -X POST "http://localhost:${PORT}/pair" \
+#       -H "X-Pairing-Code: $PAIRING_CODE"
 
-    echo ""
-    echo "✅ Pareamento concluído!"
-fi
+#     echo ""
+#     echo "✅ Pareamento concluído!"
+# fi
