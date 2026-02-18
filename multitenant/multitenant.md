@@ -22,9 +22,24 @@ allow_public_bind = true         # ← Mude de false para true
 docker logs zeroclaw-edgar | grep -A 5 "PAIRING REQUIRED"
 
 curl -X POST http://localhost:3001/pair \
-  -H "X-Pairing-Code: 513755"
+  -H "X-Pairing-Code: 126274"
 
 
+curl -X POST http://localhost:3001/webhook \
+  -H "Authorization: Bearer zc_13c3454ecba2fb667931dd1f49d9f7681ca2f45e012c678d63eaea56625cfb0f" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Verifique se chegou algum email novo"}'
+
+
+## aqui
+
+curl -X POST http://localhost:3001/webhook \
+  -H "Authorization: Bearer xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "/tool email_send {\"to\":\"edgar.segundo@gmail.com\",\"subject\":\"Teste\",\"body\":\"Oi!\",\"gmail_user\":\"edgar.segundo@gmail.com\",\"gmail_app_password\":\"qeij lfuu egns lctc\"}"}'
+
+
+/tool email_send {"to":"edgar.segundo@gmail.com","subject":"Teste ZeroClaw","body":"Funcionou!","gmail_user":"edgar.segundo@gmail.com","gmail_app_password":"qeij lfuu ..."}
 
 ## Testar o webhook:
 curl -X POST http://localhost:3001/webhook \
